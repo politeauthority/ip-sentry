@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euo pipefail
+
+CHAIN="IP-BLOCKER"
+BLOCKLIST="/blocklist/blocklist.json"
+INTERVAL={{ .Values.enforcer.intervalSeconds }}
+
+log() { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') $*"; }
+
+# Enter the host's mount namespace so we can run the host's own iptables-legacy
+# binary (used by kube-proxy). The container image only has iptables-nft, which
+# writes to a separate backend that traffic does not traverse on this cluster.
+IPT="nsenter --mount=/proc/1/ns/mnt -- iptables-legacy"
+
+setup_chain() {
+  if ! $IPT -L "$CHAIN" -n >/dev/null 2>&1; then
+    $IPT -N "$CHAIN"
+    log "Created chain $CHAIN"
+  fi
+  # FORWARD: catches traffic being routed to pods (web requests via kube-proxy DNAT)
+  if ! $IPT -C FORWARD -j "$CHAIN" >/dev/null 2>&1; then
+    $IPT -I FORWARD -j "$CHAIN"
+    log "Added FORWARD -> $CHAIN jump"
+  fi
+  # INPUT: also block the IP from reaching the node itself (SSH, etc.)
+  if ! $IPT -C INPUT -j "$CHAIN" >/dev/null 2>&1; then
+    $IPT -I INPUT -j "$CHAIN"
+    log "Added INPUT -> $CHAIN jump"
+  fi
+}
+
+get_active_ips() {
+  local now
+  now=$(date -u +%s)
+  if [[ -f "$BLOCKLIST" ]]; then
+    jq -r --argjson now "$now" '
+      to_entries[] |
+      select((.value.expires_at[0:19] | strptime("%Y-%m-%dT%H:%M:%S") | mktime) > $now) |
+      .key
+    ' "$BLOCKLIST" 2>/dev/null || true
+  fi
+}
+
+sync_rules() {
+  local tmp_active tmp_current
+  tmp_active=$(mktemp)
+  tmp_current=$(mktemp)
+  trap "rm -f $tmp_active $tmp_current" RETURN
+
+  get_active_ips | sort -u > "$tmp_active"
+  $IPT -L "$CHAIN" -n 2>/dev/null | awk '/DROP/ {print $4}' | sort -u > "$tmp_current"
+
+  while IFS= read -r ip; do
+    [[ -z "$ip" ]] && continue
+    if ! $IPT -C "$CHAIN" -s "$ip" -j DROP >/dev/null 2>&1; then
+      $IPT -A "$CHAIN" -s "$ip" -j DROP
+      log "Blocked: $ip"
+    fi
+  done < "$tmp_active"
+
+  while IFS= read -r ip; do
+    [[ -z "$ip" ]] && continue
+    if ! grep -qx "$ip" "$tmp_active"; then
+      $IPT -D "$CHAIN" -s "$ip" -j DROP 2>/dev/null || true
+      log "Unblocked (expired): $ip"
+    fi
+  done < "$tmp_current"
+}
+
+log "Starting ip-sentry enforcer on $(hostname)"
+setup_chain
+
+while true; do
+  sync_rules
+  sleep "$INTERVAL"
+done

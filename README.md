@@ -1,6 +1,6 @@
 # IP Sentry
 
-A fail2ban style IP blocking system for Kubernetes, built around [nginx-gateway-fabric](https://github.com/nginx/nginx-gateway-fabric) and Kubernetes [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/). It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and bans offending IPs via host iptables rules across all cluster nodes.
+A fail2ban style IP blocking system for Kubernetes, built around Kubernetes [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/) and [Nginx Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric). It watches Nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and bans offending IPs via host iptables rules across all cluster nodes.
 
 ## How it works
 
@@ -46,7 +46,7 @@ nginx-gateway-fabric pods
 
 ### externalTrafficPolicy: Local
 
-The nginx-gateway-fabric LoadBalancer service must have `externalTrafficPolicy: Local`. Without this, kube-proxy SNATs incoming traffic and nginx logs a cluster-internal node IP instead of the real client IP — banning it would break the cluster.
+The nginx-gateway-fabric LoadBalancer service must have `externalTrafficPolicy: Local`. Without this, kube-proxy SNATs incoming traffic and Nginx logs a cluster-internal node IP instead of the real client IP — banning it would break the cluster.
 
 ```yaml
 spec:

@@ -1,0 +1,13 @@
+{{- if not (lookup "v1" "ConfigMap" .Release.Namespace (printf "%s-blocklist" (include "ip-sentry.fullname" .))) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-blocklist
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep
+data:
+  blocklist.json: "{}"
+{{- end }}

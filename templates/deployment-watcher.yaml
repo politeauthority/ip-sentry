@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: watcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: watcher
+    spec:
+      serviceAccountName: {{ include "ip-sentry.serviceAccountName" . }}
+      containers:
+        - name: watcher
+          image: {{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag }}
+          command: [/bin/sh, -c]
+          args:
+            - pip install --quiet 'kubernetes==28.1.0' && python3 /scripts/watcher.py
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: BLOCKLIST_CM
+              value: {{ include "ip-sentry.fullname" . }}-blocklist
+          envFrom:
+            - configMapRef:
+                name: {{ include "ip-sentry.fullname" . }}-config
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            {{- toYaml .Values.watcher.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "ip-sentry.fullname" . }}-watcher-script
+            defaultMode: 0755

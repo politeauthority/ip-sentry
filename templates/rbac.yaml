@@ -1,0 +1,63 @@
+{{- if .Values.rbac.create }}
+# Allow the watcher to read and update the blocklist ConfigMap in its own namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ include "ip-sentry.fullname" . }}-blocklist]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "ip-sentry.fullname" . }}-watcher
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ip-sentry.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+# Allow the watcher to list pods and stream logs from the NGF namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher-ngf
+  namespace: {{ .Values.ngf.namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher-ngf
+  namespace: {{ .Values.ngf.namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "ip-sentry.fullname" . }}-watcher-ngf
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ip-sentry.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

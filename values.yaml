@@ -1,0 +1,70 @@
+# nginx-gateway-fabric data plane configuration
+ngf:
+  # Namespace where nginx-gateway-fabric runs
+  namespace: nginx-gateway-fabric-public
+  # Label selector targeting the nginx data-plane pods (NOT the controller pod)
+  labelSelector: "gateway.networking.k8s.io/gateway-name=nginx-public"
+  # Container name inside the data-plane pods that writes nginx access logs
+  container: nginx
+
+watcher:
+  image:
+    repository: python
+    tag: "3.12-slim"
+  # Python regex patterns matched against the request path (re.search, case-sensitive).
+  # Simple strings like "/wp-admin" work as-is. Use anchors or groups for precision,
+  # e.g. "^/admin" to match only at the start, or "/backup.*\.sql" for file scans.
+  patterns:
+    - /wp-admin
+    - /wp-login.php
+    - /xmlrpc.php
+    - /.env
+    - /phpmyadmin
+    - /admin.php
+    - /.git/
+    - /config.php
+    - /setup.php
+    - /shell.php
+    - /eval.php
+    - /manager/html
+    - /.aws/
+    - /.ssh/
+    - /boaform/
+  # Ban if total hits within windowSeconds reaches this count (same or different patterns)
+  threshold: 3
+  # Ban if this many DISTINCT patterns are hit within windowSeconds, regardless of total count.
+  # Set to 0 to disable. Default 2: hitting /wp-admin once AND /.git once = instant ban.
+  uniquePatternThreshold: 2
+  # Sliding window for hit counting (seconds)
+  windowSeconds: 120
+  # How long a ban lasts (seconds). 86400 = 24h, 604800 = 7d
+  banDurationSeconds: 86400
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+enforcer:
+  image:
+    repository: nicolaka/netshoot
+    tag: "v0.13"
+  # How often to sync iptables rules from the blocklist (seconds)
+  intervalSeconds: 30
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+serviceAccount:
+  create: true
+  # Override the service account name. Defaults to the fullname of the release.
+  name: ""
+
+rbac:
+  create: true

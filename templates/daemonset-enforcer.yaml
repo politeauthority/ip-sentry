@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-enforcer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: enforcer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: enforcer
+    spec:
+      # REQUIREMENT: The nginx-gateway-fabric LoadBalancer service must have
+      # externalTrafficPolicy: Local so that real client IPs are preserved in
+      # nginx access logs and visible at the iptables level on the node.
+      #
+      # hostNetwork: puts the pod in the host's network namespace so iptables
+      # commands affect the node's actual network stack, not just the pod veth.
+      hostNetwork: true
+      # hostPID: required for nsenter to access /proc/1/ns/mnt so the enforcer
+      # can run the host's iptables-legacy binary (used by kube-proxy).
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: enforcer
+          image: {{ .Values.enforcer.image.repository }}:{{ .Values.enforcer.image.tag }}
+          command: [/bin/bash, /scripts/enforcer.sh]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: blocklist
+              mountPath: /blocklist
+          resources:
+            {{- toYaml .Values.enforcer.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "ip-sentry.fullname" . }}-enforcer-script
+            defaultMode: 0755
+        - name: blocklist
+          configMap:
+            # Kubernetes propagates ConfigMap volume updates automatically (~60s).
+            # The enforcer re-reads every intervalSeconds, so max block lag is
+            # ~60s + intervalSeconds after a ban is written.
+            name: {{ include "ip-sentry.fullname" . }}-blocklist
+            optional: true

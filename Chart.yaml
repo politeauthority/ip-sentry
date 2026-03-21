@@ -1,0 +1,15 @@
+apiVersion: v2
+name: ip-sentry
+description: >
+  Kubernetes-native fail2ban for nginx-gateway-fabric. Streams nginx access logs,
+  detects probing requests (wp-admin, .env, xmlrpc.php, etc.), and automatically
+  bans offending IPs via host iptables rules across all cluster nodes.
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+keywords:
+  - security
+  - nginx
+  - fail2ban
+  - iptables
+  - gateway-api

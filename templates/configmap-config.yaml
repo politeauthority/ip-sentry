@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+data:
+  LOG_REGEX: {{ .Values.watcher.logRegex | quote }}
+  PATTERNS: {{ .Values.watcher.patterns | join "," | quote }}
+  THRESHOLD: {{ .Values.watcher.threshold | quote }}
+  UNIQUE_PATTERN_THRESHOLD: {{ .Values.watcher.uniquePatternThreshold | quote }}
+  WINDOW_SECONDS: {{ .Values.watcher.windowSeconds | quote }}
+  BAN_DURATION_SECONDS: {{ .Values.watcher.banDurationSeconds | quote }}
+  NGF_NAMESPACE: {{ .Values.ngf.namespace | quote }}
+  NGF_LABEL: {{ .Values.ngf.labelSelector | quote }}
+  NGF_CONTAINER: {{ .Values.ngf.container | quote }}

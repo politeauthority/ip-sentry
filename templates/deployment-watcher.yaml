@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ip-sentry.fullname" . }}-watcher
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ip-sentry.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: watcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: watcher
+    spec:
+      serviceAccountName: {{ include "ip-sentry.serviceAccountName" . }}
+      automountServiceAccountToken: true
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.watcher.podSecurityContext | nindent 8 }}
+      containers:
+        - name: watcher
+          image: {{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag }}
+          command: [/bin/sh, -c]
+          args:
+            # Install to /pip-packages (emptyDir) so the root FS stays read-only
+            - pip install --quiet --target /pip-packages 'kubernetes==28.1.0' && PYTHONPATH=/pip-packages python3 /scripts/watcher.py
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: BLOCKLIST_CM
+              value: {{ include "ip-sentry.fullname" . }}-blocklist
+          envFrom:
+            - configMapRef:
+                name: {{ include "ip-sentry.fullname" . }}-config
+          securityContext:
+            {{- toYaml .Values.watcher.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: pip-packages
+              mountPath: /pip-packages
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.watcher.resources | nindent 12 }}
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "ip-sentry.fullname" . }}-watcher-script
+            defaultMode: 0755
+        - name: pip-packages
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

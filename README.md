@@ -1,6 +1,6 @@
 # IP Sentry
 
-A fail2ban style IP blocking system for Kubernetes, built around [nginx-gateway-fabric](https://github.com/nginx/nginx-gateway-fabric) and Kubernetes [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/). It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and automatically bans offending IPs via host iptables rules across all cluster nodes.
+A fail2ban style IP blocking system for Kubernetes, built around [nginx-gateway-fabric](https://github.com/nginx/nginx-gateway-fabric) and Kubernetes [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/). It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and bans offending IPs via host iptables rules across all cluster nodes.
 
 ## How it works
 

@@ -207,3 +207,17 @@ kubectl logs -n ip-sentry -l app.kubernetes.io/component=watcher -f
 ```bash
 kubectl logs -n ip-sentry -l app.kubernetes.io/component=enforcer -f
 ```
+
+## Road Map
+
+### Import Ban Lists
+
+Create tooling for importing lists of known malicious IPs, so they can be blocked before the probe the cluster.
+
+### Bruteforce Auth
+
+Allow for watching failed login attempts on hosted services and ban an IP after repeated failed attempts.
+
+### More Malicious Probe Patterns
+
+Build out a data set of common application probing urls for users to pick and choose from.

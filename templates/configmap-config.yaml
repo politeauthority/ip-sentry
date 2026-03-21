@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "ip-sentry.labels" . | nindent 4 }}
 data:
+  LOG_REGEX: {{ .Values.watcher.logRegex | quote }}
   PATTERNS: {{ .Values.watcher.patterns | join "," | quote }}
   THRESHOLD: {{ .Values.watcher.threshold | quote }}
   UNIQUE_PATTERN_THRESHOLD: {{ .Values.watcher.uniquePatternThreshold | quote }}

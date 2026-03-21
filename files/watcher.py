@@ -31,13 +31,19 @@ for _p in _raw_patterns:
         PATTERNS.append((re.compile(_p), _p))
     except re.error as e:
         print(f"WARNING: skipping invalid regex pattern {_p!r}: {e}", flush=True)
-THRESHOLD                = int(os.environ.get("THRESHOLD", "3"))
-UNIQUE_PATTERN_THRESHOLD = int(os.environ.get("UNIQUE_PATTERN_THRESHOLD", "2"))
-WINDOW                   = int(os.environ.get("WINDOW_SECONDS", "120"))
-BAN_DURATION             = int(os.environ.get("BAN_DURATION_SECONDS", "86400"))
+THRESHOLD                = int(float(os.environ.get("THRESHOLD", "3")))
+UNIQUE_PATTERN_THRESHOLD = int(float(os.environ.get("UNIQUE_PATTERN_THRESHOLD", "2")))
+WINDOW                   = int(float(os.environ.get("WINDOW_SECONDS", "120")))
+BAN_DURATION             = int(float(os.environ.get("BAN_DURATION_SECONDS", "86400")))
 
+_DEFAULT_LOG_REGEX = r'^(\S+) \S+ \S+ \[.+?\] "(?:[A-Z]+) (\S+) \S+" \d+'
 # nginx combined log format: IP - user [date] "METHOD /path PROTO" status bytes ...
-LOG_RE = re.compile(r'^(\S+) \S+ \S+ \[.+?\] "(?:[A-Z]+) (\S+) \S+" \d+')
+# Override with LOG_REGEX env var. Group 1 must be the source IP, group 2 the request path.
+try:
+    LOG_RE = re.compile(os.environ.get("LOG_REGEX", _DEFAULT_LOG_REGEX))
+except re.error as e:
+    print(f"WARNING: invalid LOG_REGEX, falling back to default: {e}", flush=True)
+    LOG_RE = re.compile(_DEFAULT_LOG_REGEX)
 
 hits        = defaultdict(list)  # ip -> [(unix_timestamp, pattern), ...]
 hits_lock   = threading.Lock()

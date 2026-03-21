@@ -12,6 +12,9 @@ watcher:
   image:
     repository: python
     tag: "3.12-slim"
+  # Regex used to parse nginx access log lines. Must capture group 1 = source IP,
+  # group 2 = request path. Default matches the nginx combined log format.
+  logRegex: '^(\S+) \S+ \S+ \[.+?\] "(?:[A-Z]+) (\S+) \S+" \d+'
   # Python regex patterns matched against the request path (re.search, case-sensitive).
   # Simple strings like "/wp-admin" work as-is. Use anchors or groups for precision,
   # e.g. "^/admin" to match only at the start, or "/backup.*\.sql" for file scans.
@@ -39,11 +42,11 @@ watcher:
   # Ban if total hits within windowSeconds reaches this count (same or different patterns)
   threshold: 3
   # Ban if this many DISTINCT patterns are hit within windowSeconds, regardless of total count.
-  # Set to 0 to disable. Default 2: hitting /wp-admin once AND /.git once = instant ban.
+  # Set to 0 to disable. Default 2: hitting /.env once AND /.git once = instant ban.
   uniquePatternThreshold: 2
   # Sliding window for hit counting (seconds)
   windowSeconds: 120
-  # How long a ban lasts (seconds). 86400 = 24h, 604800 = 7d
+  # How long a ban lasts (seconds). 86400 = 24h, 604800 = 7d, 2592000 = 30d
   banDurationSeconds: 86400
   resources:
     requests:

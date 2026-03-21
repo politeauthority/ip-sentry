@@ -1,6 +1,6 @@
 # IP Sentry
 
-A fail2ban-style IP blocking system for Kubernetes, built around [nginx-gateway-fabric](https://github.com/nginx/nginx-gateway-fabric) and the [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/). It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and automatically bans offending IPs via host iptables rules across all cluster nodes.
+A fail2ban style IP blocking system for Kubernetes, built around Kubernetes [Gateway API](https://kubernetes.io/docs/concepts/services-networking/gateway/) and [Nginx Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric). It watches Nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and bans offending IPs via host iptables rules across all cluster nodes.
 
 ## How it works
 
@@ -46,7 +46,7 @@ nginx-gateway-fabric pods
 
 ### externalTrafficPolicy: Local
 
-The nginx-gateway-fabric LoadBalancer service must have `externalTrafficPolicy: Local`. Without this, kube-proxy SNATs incoming traffic and nginx logs a cluster-internal node IP instead of the real client IP — banning it would break the cluster.
+The nginx-gateway-fabric LoadBalancer service must have `externalTrafficPolicy: Local`. Without this, kube-proxy SNATs incoming traffic and Nginx logs a cluster-internal node IP instead of the real client IP — banning it would break the cluster.
 
 ```yaml
 spec:
@@ -207,3 +207,17 @@ kubectl logs -n ip-sentry -l app.kubernetes.io/component=watcher -f
 ```bash
 kubectl logs -n ip-sentry -l app.kubernetes.io/component=enforcer -f
 ```
+
+## Road Map
+
+### Import Ban Lists
+
+Create tooling for importing lists of known malicious IPs, so they can be blocked before the probe the cluster.
+
+### Bruteforce Auth
+
+Allow for watching failed login attempts on hosted services and ban an IP after repeated failed attempts.
+
+### More Malicious Probe Patterns
+
+Build out a data set of common application probing urls for users to pick and choose from.

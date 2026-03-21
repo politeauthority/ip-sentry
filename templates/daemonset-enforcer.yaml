@@ -24,23 +24,40 @@ spec:
       #
       # hostNetwork: puts the pod in the host's network namespace so iptables
       # commands affect the node's actual network stack, not just the pod veth.
-      hostNetwork: true
       # hostPID: required for nsenter to access /proc/1/ns/mnt so the enforcer
       # can run the host's iptables-legacy binary (used by kube-proxy).
+      hostNetwork: true
       hostPID: true
+      # The enforcer never calls the Kubernetes API; disable token mounting.
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.enforcer.podSecurityContext | nindent 8 }}
+      {{- if or .Values.enforcer.tolerateControlPlane .Values.enforcer.tolerations }}
       tolerations:
+        {{- if .Values.enforcer.tolerateControlPlane }}
         - operator: Exists
+        {{- end }}
+        {{- with .Values.enforcer.tolerations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: enforcer
           image: {{ .Values.enforcer.image.repository }}:{{ .Values.enforcer.image.tag }}
           command: [/bin/bash, /scripts/enforcer.sh]
           securityContext:
-            privileged: true
+            {{- toYaml .Values.enforcer.securityContext | nindent 12 }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts
             - name: blocklist
               mountPath: /blocklist
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.enforcer.resources | nindent 12 }}
       volumes:
@@ -55,3 +72,5 @@ spec:
             # ~60s + intervalSeconds after a ban is written.
             name: {{ include "ip-sentry.fullname" . }}-blocklist
             optional: true
+        - name: tmp
+          emptyDir: {}

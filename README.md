@@ -1,11 +1,11 @@
-# K8s IP Sentry v0.0.1
+# IP Sentry v0.0.1
 
-A fail2ban-style IP blocking system for Kubernetes, built around nginx-gateway-fabric. It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and automatically bans offending IPs at the host iptables level across all cluster nodes.
+A fail2ban-style IP blocking system for Kubernetes, built around [Nginx Gateway Fabric](https://github.com/nginx/nginx-gateway-fabric) and Kubernetes's [Gateway Api](https://kubernetes.io/docs/concepts/services-networking/gateway/). It watches nginx access logs for probing requests (WordPress admin panels, exposed config files, shell injection attempts, etc.) and automatically bans offending IPs at the host iptables level across all cluster nodes.
 
 ## Quick Install
-
+TLDR
 ```bash
-helm upgrade --install --create-namespace -n ip-sentry ip-sentry . -f values-colfax.yaml
+helm upgrade --install --create-namespace -n ip-sentry ip-sentry . -f values.yaml
 ```
 
 ## Usage

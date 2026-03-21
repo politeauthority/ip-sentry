@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ip-sentry log-watcher
+ip-sentry watcher
 
 Streams nginx access logs from nginx-gateway-fabric pods via the Kubernetes API.
 Detects probing/exploit requests by matching URLs against configured patterns.
@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 NAMESPACE        = os.environ.get("NAMESPACE", "default")
 BLOCKLIST_CM     = os.environ.get("BLOCKLIST_CM", "ip-sentry-blocklist")
-NGF_NAMESPACE    = os.environ.get("NGF_NAMESPACE", "nginx-gateway-fabric-public")
+NGF_NAMESPACE    = os.environ.get("NGF_NAMESPACE", "nginx-gateway-fabric")
 NGF_LABEL        = os.environ.get("NGF_LABEL", "gateway.networking.k8s.io/gateway-name=nginx-public")
 NGF_CONTAINER    = os.environ.get("NGF_CONTAINER", "nginx")
 _raw_patterns = [p.strip() for p in os.environ.get("PATTERNS", "/wp-admin,/wp-login.php,/.env").split(",") if p.strip()]

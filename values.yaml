@@ -1,7 +1,8 @@
+# IP Sentry values
 # nginx-gateway-fabric data plane configuration
 ngf:
   # Namespace where nginx-gateway-fabric runs
-  namespace: nginx-gateway-fabric-public
+  namespace: nginx-gateway-fabric
   # Label selector targeting the nginx data-plane pods (NOT the controller pod)
   labelSelector: "gateway.networking.k8s.io/gateway-name=nginx-public"
   # Container name inside the data-plane pods that writes nginx access logs
@@ -15,21 +16,26 @@ watcher:
   # Simple strings like "/wp-admin" work as-is. Use anchors or groups for precision,
   # e.g. "^/admin" to match only at the start, or "/backup.*\.sql" for file scans.
   patterns:
-    - /wp-admin
-    - /wp-login.php
-    - /xmlrpc.php
-    - /.env
-    - /phpmyadmin
-    - /admin.php
-    - /.git/
-    - /config.php
-    - /setup.php
-    - /shell.php
-    - /eval.php
-    - /manager/html
-    - /.aws/
-    - /.ssh/
-    - /boaform/
+    # WordPress
+    - '^/wp-admin'
+    - '^/wp-login\.php'
+    - '^/xmlrpc\.php'
+    # Exposed config / secrets
+    - '^/\.env'         # matches /.env, /.env.local, /.env.production, etc.
+    - '^/\.git/'
+    - '^/\.aws/'
+    - '^/\.ssh/'
+    # Database admin panels
+    - '^/phpmyadmin'
+    - '^/manager/html'  # Tomcat manager
+    # Generic PHP shells / scanners
+    - '^/admin\.php'
+    - '^/config\.php'
+    - '^/setup\.php'
+    - '^/shell\.php'
+    - '^/eval\.php'
+    # IoT / router exploits
+    - '^/boaform/'
   # Ban if total hits within windowSeconds reaches this count (same or different patterns)
   threshold: 3
   # Ban if this many DISTINCT patterns are hit within windowSeconds, regardless of total count.
@@ -46,6 +52,21 @@ watcher:
     limits:
       cpu: 200m
       memory: 128Mi
+  # Pod-level security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  # Container-level security context
+  # Note: readOnlyRootFilesystem requires no writes to the container FS.
+  # pip packages are installed to an emptyDir at /pip-packages, so this is safe.
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
 
 enforcer:
   image:
@@ -53,6 +74,11 @@ enforcer:
     tag: "v0.13"
   # How often to sync iptables rules from the blocklist (seconds)
   intervalSeconds: 30
+  # Set to true to also run the enforcer on control plane nodes.
+  # Requires the broad operator:Exists toleration. Default false — worker nodes only.
+  tolerateControlPlane: false
+  # Additional tolerations to apply to the enforcer DaemonSet pods.
+  tolerations: []
   resources:
     requests:
       cpu: 10m
@@ -60,6 +86,18 @@ enforcer:
     limits:
       cpu: 100m
       memory: 64Mi
+  # Pod-level security context. The enforcer must run privileged for iptables;
+  # seccomp is set at the pod level as it is overridden by privileged otherwise.
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  # Container-level security context. privileged is required and cannot be removed.
+  # Temp files (mktemp) are written to an emptyDir mounted at /tmp.
+  securityContext:
+    privileged: true
+    readOnlyRootFilesystem: true
+
+imagePullSecrets: []
 
 serviceAccount:
   create: true

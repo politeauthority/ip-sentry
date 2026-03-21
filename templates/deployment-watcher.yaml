@@ -20,12 +20,20 @@ spec:
         app.kubernetes.io/component: watcher
     spec:
       serviceAccountName: {{ include "ip-sentry.serviceAccountName" . }}
+      automountServiceAccountToken: true
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.watcher.podSecurityContext | nindent 8 }}
       containers:
         - name: watcher
           image: {{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag }}
           command: [/bin/sh, -c]
           args:
-            - pip install --quiet 'kubernetes==28.1.0' && python3 /scripts/watcher.py
+            # Install to /pip-packages (emptyDir) so the root FS stays read-only
+            - pip install --quiet --target /pip-packages 'kubernetes==28.1.0' && PYTHONPATH=/pip-packages python3 /scripts/watcher.py
           env:
             - name: NAMESPACE
               valueFrom:
@@ -36,9 +44,15 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "ip-sentry.fullname" . }}-config
+          securityContext:
+            {{- toYaml .Values.watcher.securityContext | nindent 12 }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts
+            - name: pip-packages
+              mountPath: /pip-packages
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.watcher.resources | nindent 12 }}
       volumes:
@@ -46,3 +60,7 @@ spec:
           configMap:
             name: {{ include "ip-sentry.fullname" . }}-watcher-script
             defaultMode: 0755
+        - name: pip-packages
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

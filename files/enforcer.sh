@@ -10,7 +10,7 @@ log() { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') $*"; }
 # Enter the host's mount namespace so we can run the host's own iptables-legacy
 # binary (used by kube-proxy). The container image only has iptables-nft, which
 # writes to a separate backend that traffic does not traverse on this cluster.
-IPT="nsenter --mount=/proc/1/ns/mnt -- iptables-legacy"
+IPT="nsenter --mount=/proc/1/ns/mnt -- iptables-legacy -w 10"
 
 setup_chain() {
   if ! $IPT -L "$CHAIN" -n >/dev/null 2>&1; then

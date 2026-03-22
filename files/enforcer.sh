@@ -37,7 +37,7 @@ get_active_ips() {
       to_entries[] |
       select((.value.expires_at[0:19] | strptime("%Y-%m-%dT%H:%M:%S") | mktime) > $now) |
       .key
-    ' "$BLOCKLIST" 2>/dev/null || true
+    ' "$BLOCKLIST"
   fi
 }
 
@@ -47,7 +47,10 @@ sync_rules() {
   tmp_current=$(mktemp)
   trap "rm -f $tmp_active $tmp_current" RETURN
 
-  get_active_ips | sort -u > "$tmp_active"
+  if ! get_active_ips | sort -u > "$tmp_active"; then
+    log "ERROR: failed to parse blocklist — skipping sync to preserve existing rules"
+    return
+  fi
   $IPT -L "$CHAIN" -n 2>/dev/null | awk '/DROP/ {print $4}' | sort -u > "$tmp_current"
 
   while IFS= read -r ip; do

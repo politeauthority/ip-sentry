@@ -1,0 +1,32 @@
+version: '3'
+tasks:
+  helm-lint:
+    cmds:
+      - |
+        helm lint ./
+        echo "🙌 Wu-Tang"
+  ban-ip:
+    requires:
+      vars: [IP]
+    vars:
+      REASON: '{{default "manual" .REASON}}'
+    cmds:
+      - |
+        NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        EXPIRES=$(date -u -v+90d +%Y-%m-%dT%H:%M:%SZ)
+        UPDATED=$(kubectl get cm -n ip-sentry ip-sentry-blocklist \
+          -o jsonpath='{.data.blocklist\.json}' | \
+          jq -c --arg ip "{{.IP}}" --arg now "$NOW" --arg expires "$EXPIRES" --arg reason "{{.REASON}}" \
+          '. + {($ip): {"banned_at": $now, "expires_at": $expires, "reason": $reason, "hit_count": 1}}')
+        kubectl patch cm -n ip-sentry ip-sentry-blocklist --type=merge \
+          -p "{\"data\":{\"blocklist.json\":$(echo "$UPDATED" | jq -Rs .)}}"
+        echo "Banned {{.IP}} (reason: {{.REASON}}) until $EXPIRES"
+    silent: true
+
+  map-banned:
+    cmds:
+      - kubectl get cm -n ip-sentry ip-sentry-blocklist -o jsonpath='{.data.blocklist\.json}' > banned.json
+      - scripts/.venv/bin/python scripts/map_bans.py --input banned.json --output scripts/ban_map.html
+      - open scripts/ban_map.html
+    silent: true
+

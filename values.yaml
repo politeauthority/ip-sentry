@@ -43,7 +43,7 @@ watcher:
   threshold: 3
   # Ban if this many DISTINCT patterns are hit within windowSeconds, regardless of total count.
   # Set to 0 to disable. Default 2: hitting /.env once AND /.git once = instant ban.
-  uniquePatternThreshold: 2
+  uniquePatternThreshold: 1
   # Sliding window for hit counting (seconds)
   windowSeconds: 120
   # How long a ban lasts (seconds). 86400 = 24h, 604800 = 7d, 2592000 = 30d

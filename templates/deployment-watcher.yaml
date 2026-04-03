@@ -53,6 +53,23 @@ spec:
               mountPath: /pip-packages
             - name: tmp
               mountPath: /tmp
+          # Startup probe: waits for pip install + first pod_watcher() heartbeat.
+          # pip install kubernetes==28.1.0 can take up to ~2 minutes on a cold node,
+          # then pod_watcher() writes /tmp/healthy within its first 30s loop iteration.
+          # 30s delay + 18 × 10s periods = up to 3 minutes total before giving up.
+          startupProbe:
+            exec:
+              command: ["test", "-f", "/tmp/healthy"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 18
+          # Liveness probe: pod_watcher() writes /tmp/healthy every 30s.
+          # Kill the pod if the heartbeat is stale for >2 minutes (missed 4 cycles).
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "find /tmp/healthy -mmin -2 | grep -q ."]
+            periodSeconds: 30
+            failureThreshold: 4
           resources:
             {{- toYaml .Values.watcher.resources | nindent 12 }}
       volumes:

@@ -174,6 +174,9 @@ def tail_pod(pod_name):
             time.sleep(15)
 
 
+HEARTBEAT_FILE = "/tmp/healthy"
+
+
 def pod_watcher():
     """Discover NGF pods and start a tail thread for each running pod."""
     v1      = client.CoreV1Api()
@@ -192,6 +195,11 @@ def pod_watcher():
             threads = {k: v for k, v in threads.items() if k in running or v.is_alive()}
         except Exception as e:
             log.error(f"Pod watcher error: {e}")
+        try:
+            with open(HEARTBEAT_FILE, "w") as f:
+                f.write(str(time.time()))
+        except Exception as e:
+            log.warning(f"Failed to write heartbeat: {e}")
         time.sleep(30)
 
 

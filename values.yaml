@@ -10,8 +10,8 @@ ngf:
 
 watcher:
   image:
-    repository: python
-    tag: "3.12-slim"
+    repository: harbor.squid-ink.us/politeauthority/ip-sentry-watcher
+    tag: latest
   # Regex used to parse nginx access log lines. Must capture group 1 = source IP,
   # group 2 = request path. Default matches the nginx combined log format.
   logRegex: '^(\S+) \S+ \S+ \[.+?\] "(?:[A-Z]+) (\S+) \S+" \d+'
@@ -100,7 +100,8 @@ enforcer:
     privileged: true
     readOnlyRootFilesystem: true
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: harbor-registry
 
 serviceAccount:
   create: true

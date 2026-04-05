@@ -1,5 +1,23 @@
 version: '3'
+
+vars:
+  IMAGE: harbor.squid-ink.us/politeauthority/ip-sentry-watcher
+  TAG:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+
 tasks:
+  build-watcher:
+    desc: Build and push the watcher image for amd64 + arm64
+    cmds:
+      - |
+        docker buildx build \
+          --platform linux/amd64,linux/arm64 \
+          -t {{.IMAGE}}:{{.TAG}} \
+          -t {{.IMAGE}}:latest \
+          --push \
+          .
+      - echo "Pushed {{.IMAGE}}:{{.TAG}}"
+
   helm-lint:
     cmds:
       - |
@@ -21,6 +39,21 @@ tasks:
         kubectl patch cm -n ip-sentry ip-sentry-blocklist --type=merge \
           -p "{\"data\":{\"blocklist.json\":$(echo "$UPDATED" | jq -Rs .)}}"
         echo "Banned {{.IP}} (reason: {{.REASON}}) until $EXPIRES"
+    silent: true
+
+  import-bans:
+    requires:
+      vars: [FILE]
+    cmds:
+      - |
+        EXISTING=$(kubectl get cm -n ip-sentry ip-sentry-blocklist \
+          -o jsonpath='{.data.blocklist\.json}')
+        NEW=$(jq 'map({(.ip): {banned_at: .banned_at, expires_at: .expires_at, reason: .reason, hit_count: .hits}}) | add' \
+          "{{.FILE}}")
+        MERGED=$(echo "$EXISTING" | jq --argjson new "$NEW" '. + $new')
+        kubectl patch cm -n ip-sentry ip-sentry-blocklist --type=merge \
+          -p "{\"data\":{\"blocklist.json\":$(echo "$MERGED" | jq -Rs .)}}"
+        echo "Imported $(echo "$NEW" | jq 'length') IPs from {{.FILE}}"
     silent: true
 
   map-banned:

@@ -203,11 +203,35 @@ def pod_watcher():
         time.sleep(30)
 
 
+def ensure_configmap(v1):
+    """Create the blocklist ConfigMap if it doesn't exist (e.g. fresh install)."""
+    try:
+        v1.read_namespaced_config_map(BLOCKLIST_CM, NAMESPACE)
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            v1.create_namespaced_config_map(
+                NAMESPACE,
+                client.V1ConfigMap(
+                    metadata=client.V1ObjectMeta(
+                        name=BLOCKLIST_CM,
+                        namespace=NAMESPACE,
+                        annotations={"helm.sh/resource-policy": "keep"},
+                    ),
+                    data={"blocklist.json": "{}"},
+                ),
+            )
+            log.info(f"Created blocklist ConfigMap {BLOCKLIST_CM}")
+        else:
+            raise
+
+
 def main():
     config.load_incluster_config()
 
+    v1 = client.CoreV1Api()
+    ensure_configmap(v1)
+
     try:
-        v1   = client.CoreV1Api()
         cm   = v1.read_namespaced_config_map(BLOCKLIST_CM, NAMESPACE)
         data = json.loads(cm.data.get("blocklist.json", "{}") or "{}")
         with banned_lock:

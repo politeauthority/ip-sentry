@@ -30,10 +30,6 @@ spec:
       containers:
         - name: watcher
           image: {{ .Values.watcher.image.repository }}:{{ .Values.watcher.image.tag }}
-          command: [/bin/sh, -c]
-          args:
-            # Install to /pip-packages (emptyDir) so the root FS stays read-only
-            - pip install --quiet --target /pip-packages 'kubernetes==28.1.0' && PYTHONPATH=/pip-packages python3 /scripts/watcher.py
           env:
             - name: NAMESPACE
               valueFrom:
@@ -47,23 +43,15 @@ spec:
           securityContext:
             {{- toYaml .Values.watcher.securityContext | nindent 12 }}
           volumeMounts:
-            - name: scripts
-              mountPath: /scripts
-            - name: pip-packages
-              mountPath: /pip-packages
             - name: tmp
               mountPath: /tmp
-          # Startup probe: waits for pip install + first pod_watcher() heartbeat.
-          # pip install kubernetes==28.1.0 can take up to ~2 minutes on a cold node,
-          # then pod_watcher() writes /tmp/healthy within its first 30s loop iteration.
-          # 30s delay + 18 × 10s periods = up to 3 minutes total before giving up.
+          # pod_watcher() writes /tmp/healthy within the first 30s loop iteration.
           startupProbe:
             exec:
               command: ["test", "-f", "/tmp/healthy"]
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 18
-          # Liveness probe: pod_watcher() writes /tmp/healthy every 30s.
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
           # Kill the pod if the heartbeat is stale for >2 minutes (missed 4 cycles).
           livenessProbe:
             exec:
@@ -73,11 +61,5 @@ spec:
           resources:
             {{- toYaml .Values.watcher.resources | nindent 12 }}
       volumes:
-        - name: scripts
-          configMap:
-            name: {{ include "ip-sentry.fullname" . }}-watcher-script
-            defaultMode: 0755
-        - name: pip-packages
-          emptyDir: {}
         - name: tmp
           emptyDir: {}
